@@ -80,11 +80,11 @@
 	<script>
 		let parseDate = d3.timeParse('%Y-%m-%d');
 
-		d3.csv('./../fb.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart(d));
-		d3.csv('./../amzn.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart2(d));
-		d3.csv('./../aapl.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart3(d));
-		d3.csv('./../nflx.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart4(d));
-		d3.csv('./../goog.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart5(d));
+		d3.csv('fb.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart(d));
+		d3.csv('amzn.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart2(d));
+		d3.csv('aapl.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart3(d));
+		d3.csv('nflx.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart4(d));
+		d3.csv('goog.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart5(d));
 
 		function chart5(data) {
 			data.sort((a, b) => a.date - b.date);
