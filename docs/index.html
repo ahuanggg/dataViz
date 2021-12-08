@@ -1,0 +1,753 @@
+<head>
+	<title>Line chart zoom</title>
+	<script src="https://d3js.org/d3.v5.min.js"></script>
+	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600&display=swap');
+
+		body {
+			font-family: 'Montserrat', sans-serif;
+			margin: auto;
+			width: 850px;
+			padding-top: 45px;
+			background-color: whitesmoke;
+		}
+		.overlay {
+			fill: none;
+			pointer-events: all;
+		}
+		svg {
+			font-size: 12px;
+			font-style: italic;
+			color: black;
+		}
+		p {
+			font-weight: normal;
+			font-size: 25px;
+			letter-spacing: 1px;
+		}
+		#title {
+			font-size: 50px;
+			font-weight: 400;
+			text-align: center;
+			padding-bottom: 0;
+			margin-bottom: -10px;
+			letter-spacing: 1.5px;
+		}
+		#details {
+			font-size: 20px;
+			font-weight: 300;
+			text-align: center;
+		}
+	</style>
+</head>
+
+<body>
+	<p id="title">Stock prices of FAANG</p>
+	<p id="details">by: Andy Huang Ling</p>
+	<br />
+	<br />
+	<p style="text-align: center; padding: 10px">FaceBook stock prince since 2012</p>
+	<svg id="chart" width="800" height="500"></svg>
+	<br />
+	<br />
+	<br />
+	<p style="text-align: center; padding: 10px">Amazon stock prince since 1997</p>
+	<svg id="chart2" width="800" height="500"></svg>
+	<br />
+	<br />
+	<br />
+	<p style="text-align: center; padding: 10px">Apple stock prince since 1980</p>
+	<svg id="chart3" width="800" height="500"></svg>
+	<br />
+	<br />
+	<br />
+	<p style="text-align: center; padding: 10px">Netflix stock prince since 2002</p>
+	<svg id="chart4" width="800" height="500"></svg>
+	<br />
+	<br />
+	<br />
+	<p style="text-align: center; padding: 10px">Google stock prince since 2014</p>
+	<svg id="chart5" width="800" height="500"></svg>
+	<br />
+	<br />
+
+	<br />
+
+	<br />
+	<br />
+	<br />
+
+	<script>
+		let parseDate = d3.timeParse('%Y-%m-%d');
+
+		d3.csv('fb.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart(d));
+		d3.csv('amzn.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart2(d));
+		d3.csv('aapl.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart3(d));
+		d3.csv('nflx.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart4(d));
+		d3.csv('goog.csv', ({ Date, Close }) => ({ date: parseDate(Date), value: +Close })).then((d) => chart5(d));
+
+		function chart5(data) {
+			data.sort((a, b) => a.date - b.date);
+
+			let svg = d3.select('#chart5');
+			(margin = { top: 15, right: -15, bottom: 15, left: 35 }), (width = +svg.attr('width') - margin.left - margin.right), (height = +svg.attr('height') - margin.top - margin.bottom);
+
+			let x = d3
+				.scaleTime()
+				.domain(d3.extent(data, (d) => d.date))
+				.range([margin.left, width - margin.right]);
+
+			let y = d3
+				.scaleLinear()
+				.domain([0, d3.max(data, (d) => d.value)])
+				.nice()
+				.range([height - margin.bottom, margin.top]);
+
+			let xAxis = svg
+				.append('g')
+				.attr('class', 'x-axis')
+				.attr('clip-path', 'url(#clip)')
+				.attr('transform', `translate(0,${height - margin.bottom})`)
+				.call(d3.axisBottom(x).tickSizeOuter(0));
+
+			let yAxis = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(${margin.left},0)`).call(d3.axisLeft(y));
+
+			let line = d3
+				.line()
+				.defined((d) => !isNaN(d.value))
+				.x((d) => x(d.date))
+				.y((d) => y(d.value));
+
+			let defs = svg
+				.append('defs')
+				.append('clipPath')
+				.attr('id', 'clip')
+				.append('rect')
+				.attr('x', margin.left)
+				.attr('width', width - margin.right)
+				.attr('height', height);
+
+			let path = svg.append('path').datum(data).attr('class', 'path').attr('fill', 'none').attr('clip-path', 'url(#clip)').attr('stroke', 'gray').attr('stroke-width', 1.5).attr('d', line);
+
+			// let dot = svg
+			// 	.selectAll('dot')
+			// 	.data(data, (d) => d.date)
+			// 	.join('circle')
+			// 	.attr('cx', (d) => x(d.date))
+			// 	.attr('cy', (d) => y(d.value))
+			// 	.attr('r', 1)
+			// 	.style('fill', 'gray');
+
+			svg.call(zoom);
+
+			function zoom(svg) {
+				let extent = [
+					[margin.left, margin.top],
+					[width - margin.right, height - margin.top],
+				];
+
+				let zooming = d3.zoom().scaleExtent([1, 5]).translateExtent(extent).extent(extent).on('zoom', zoomed);
+
+				svg.call(zooming);
+
+				function zoomed() {
+					x.range([margin.left, width - margin.right].map((d) => d3.event.transform.applyX(d)));
+					y.range([height - margin.bottom, margin.top].map((d) => d3.event.transform.applyY(d)));
+
+					svg.select('.path').attr('d', line);
+					// svg.selectAll('dot')
+					// 	// .data(data, (d) => d.date)
+					// 	// .join('circle')
+					// 	.attr('cx', (d) => x(d.date))
+					// 	.attr('cy', (d) => y(d.value))
+					// 	.attr('r', 1)
+					// 	.style('fill', 'gray');
+
+					svg.select('.x-axis').call(d3.axisBottom(x).tickSizeOuter(0));
+					svg.select('.y-axis').call(d3.axisLeft(y).tickSizeOuter(0));
+				}
+			}
+
+			svg.call(hover);
+
+			function hover() {
+				let bisect = d3.bisector((d) => d.date).left,
+					format = d3.format('+.0%'),
+					dateFormat = d3.timeFormat('%d %b %Y');
+
+				let focus = svg.append('g').attr('class', 'focus').style('display', 'none');
+
+				focus
+					.append('line')
+					.attr('stroke', 'steelblue')
+					.attr('stroke-width', 1)
+					.attr('y1', -height + margin.top)
+					.attr('y2', -margin.bottom);
+
+				focus.append('circle').attr('class', 'circle').attr('r', 3).attr('dy', 5).attr('stroke', 'steelblue').attr('fill', '#fff');
+
+				focus.append('text').attr('text-anchor', 'middle').attr('dy', '.35em');
+
+				let overlay = svg
+					.append('rect')
+					.attr('class', 'overlay')
+					.attr('x', margin.left)
+					.attr('y', margin.top)
+					.attr('width', width - margin.right - margin.left - 1)
+					.attr('height', height - margin.bottom - margin.top)
+					.on('mouseover', () => focus.style('display', null))
+					.on('mouseout', () => focus.style('display', 'none'))
+					.on('mousemove', mousemove);
+
+				function mousemove() {
+					let x0 = x.invert(d3.mouse(this)[0]);
+
+					let i = bisect(data, x0, 1),
+						d0 = data[i - 1],
+						d1 = data[i],
+						d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+					focus.select('line').attr('transform', 'translate(' + x(d.date) + ',' + height + ')');
+
+					focus.selectAll('.circle').attr('transform', 'translate(' + x(d.date) + ',' + y(d.value) + ')');
+
+					focus
+						.select('text')
+						.attr('transform', 'translate(' + x(d.date) + ',' + (height + margin.bottom) + ')')
+						.text('Date: ' + dateFormat(d.date) + ' Price: ' + d.value);
+				}
+			}
+		}
+
+		function chart4(data) {
+			data.sort((a, b) => a.date - b.date);
+
+			let svg = d3.select('#chart4');
+			(margin = { top: 15, right: -15, bottom: 15, left: 35 }), (width = +svg.attr('width') - margin.left - margin.right), (height = +svg.attr('height') - margin.top - margin.bottom);
+
+			let x = d3
+				.scaleTime()
+				.domain(d3.extent(data, (d) => d.date))
+				.range([margin.left, width - margin.right]);
+
+			let y = d3
+				.scaleLinear()
+				.domain([0, d3.max(data, (d) => d.value)])
+				.nice()
+				.range([height - margin.bottom, margin.top]);
+
+			let xAxis = svg
+				.append('g')
+				.attr('class', 'x-axis')
+				.attr('clip-path', 'url(#clip)')
+				.attr('transform', `translate(0,${height - margin.bottom})`)
+				.call(d3.axisBottom(x).tickSizeOuter(0));
+
+			let yAxis = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(${margin.left},0)`).call(d3.axisLeft(y));
+
+			let line = d3
+				.line()
+				.defined((d) => !isNaN(d.value))
+				.x((d) => x(d.date))
+				.y((d) => y(d.value));
+
+			let defs = svg
+				.append('defs')
+				.append('clipPath')
+				.attr('id', 'clip')
+				.append('rect')
+				.attr('x', margin.left)
+				.attr('width', width - margin.right)
+				.attr('height', height);
+
+			let path = svg.append('path').datum(data).attr('class', 'path').attr('fill', 'none').attr('clip-path', 'url(#clip)').attr('stroke', 'gray').attr('stroke-width', 1.5).attr('d', line);
+
+			// let dot = svg
+			// 	.selectAll('dot')
+			// 	.data(data, (d) => d.date)
+			// 	.join('circle')
+			// 	.attr('cx', (d) => x(d.date))
+			// 	.attr('cy', (d) => y(d.value))
+			// 	.attr('r', 1)
+			// 	.style('fill', 'gray');
+
+			svg.call(zoom);
+
+			function zoom(svg) {
+				let extent = [
+					[margin.left, margin.top],
+					[width - margin.right, height - margin.top],
+				];
+
+				let zooming = d3.zoom().scaleExtent([1, 5]).translateExtent(extent).extent(extent).on('zoom', zoomed);
+
+				svg.call(zooming);
+
+				function zoomed() {
+					x.range([margin.left, width - margin.right].map((d) => d3.event.transform.applyX(d)));
+					y.range([height - margin.bottom, margin.top].map((d) => d3.event.transform.applyY(d)));
+
+					svg.select('.path').attr('d', line);
+					// svg.selectAll('dot')
+					// 	// .data(data, (d) => d.date)
+					// 	// .join('circle')
+					// 	.attr('cx', (d) => x(d.date))
+					// 	.attr('cy', (d) => y(d.value))
+					// 	.attr('r', 1)
+					// 	.style('fill', 'gray');
+
+					svg.select('.x-axis').call(d3.axisBottom(x).tickSizeOuter(0));
+					svg.select('.y-axis').call(d3.axisLeft(y).tickSizeOuter(0));
+				}
+			}
+
+			svg.call(hover);
+
+			function hover() {
+				let bisect = d3.bisector((d) => d.date).left,
+					format = d3.format('+.0%'),
+					dateFormat = d3.timeFormat('%d %b %Y');
+
+				let focus = svg.append('g').attr('class', 'focus').style('display', 'none');
+
+				focus
+					.append('line')
+					.attr('stroke', 'steelblue')
+					.attr('stroke-width', 1)
+					.attr('y1', -height + margin.top)
+					.attr('y2', -margin.bottom);
+
+				focus.append('circle').attr('class', 'circle').attr('r', 3).attr('dy', 5).attr('stroke', 'steelblue').attr('fill', '#fff');
+
+				focus.append('text').attr('text-anchor', 'middle').attr('dy', '.35em');
+
+				let overlay = svg
+					.append('rect')
+					.attr('class', 'overlay')
+					.attr('x', margin.left)
+					.attr('y', margin.top)
+					.attr('width', width - margin.right - margin.left - 1)
+					.attr('height', height - margin.bottom - margin.top)
+					.on('mouseover', () => focus.style('display', null))
+					.on('mouseout', () => focus.style('display', 'none'))
+					.on('mousemove', mousemove);
+
+				function mousemove() {
+					let x0 = x.invert(d3.mouse(this)[0]);
+
+					let i = bisect(data, x0, 1),
+						d0 = data[i - 1],
+						d1 = data[i],
+						d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+					focus.select('line').attr('transform', 'translate(' + x(d.date) + ',' + height + ')');
+
+					focus.selectAll('.circle').attr('transform', 'translate(' + x(d.date) + ',' + y(d.value) + ')');
+
+					focus
+						.select('text')
+						.attr('transform', 'translate(' + x(d.date) + ',' + (height + margin.bottom) + ')')
+						.text('Date: ' + dateFormat(d.date) + ' Price: ' + d.value);
+				}
+			}
+		}
+
+		function chart3(data) {
+			data.sort((a, b) => a.date - b.date);
+
+			let svg = d3.select('#chart3');
+			(margin = { top: 15, right: -15, bottom: 15, left: 35 }), (width = +svg.attr('width') - margin.left - margin.right), (height = +svg.attr('height') - margin.top - margin.bottom);
+
+			let x = d3
+				.scaleTime()
+				.domain(d3.extent(data, (d) => d.date))
+				.range([margin.left, width - margin.right]);
+
+			let y = d3
+				.scaleLinear()
+				.domain([0, d3.max(data, (d) => d.value)])
+				.nice()
+				.range([height - margin.bottom, margin.top]);
+
+			let xAxis = svg
+				.append('g')
+				.attr('class', 'x-axis')
+				.attr('clip-path', 'url(#clip)')
+				.attr('transform', `translate(0,${height - margin.bottom})`)
+				.call(d3.axisBottom(x).tickSizeOuter(0));
+
+			let yAxis = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(${margin.left},0)`).call(d3.axisLeft(y));
+
+			let line = d3
+				.line()
+				.defined((d) => !isNaN(d.value))
+				.x((d) => x(d.date))
+				.y((d) => y(d.value));
+
+			let defs = svg
+				.append('defs')
+				.append('clipPath')
+				.attr('id', 'clip')
+				.append('rect')
+				.attr('x', margin.left)
+				.attr('width', width - margin.right)
+				.attr('height', height);
+
+			let path = svg.append('path').datum(data).attr('class', 'path').attr('fill', 'none').attr('clip-path', 'url(#clip)').attr('stroke', 'gray').attr('stroke-width', 1.5).attr('d', line);
+
+			// let dot = svg
+			// 	.selectAll('dot')
+			// 	.data(data, (d) => d.date)
+			// 	.join('circle')
+			// 	.attr('cx', (d) => x(d.date))
+			// 	.attr('cy', (d) => y(d.value))
+			// 	.attr('r', 1)
+			// 	.style('fill', 'gray');
+
+			svg.call(zoom);
+
+			function zoom(svg) {
+				let extent = [
+					[margin.left, margin.top],
+					[width - margin.right, height - margin.top],
+				];
+
+				let zooming = d3.zoom().scaleExtent([1, 5]).translateExtent(extent).extent(extent).on('zoom', zoomed);
+
+				svg.call(zooming);
+
+				function zoomed() {
+					x.range([margin.left, width - margin.right].map((d) => d3.event.transform.applyX(d)));
+					y.range([height - margin.bottom, margin.top].map((d) => d3.event.transform.applyY(d)));
+
+					svg.select('.path').attr('d', line);
+					// svg.selectAll('dot')
+					// 	// .data(data, (d) => d.date)
+					// 	// .join('circle')
+					// 	.attr('cx', (d) => x(d.date))
+					// 	.attr('cy', (d) => y(d.value))
+					// 	.attr('r', 1)
+					// 	.style('fill', 'gray');
+
+					svg.select('.x-axis').call(d3.axisBottom(x).tickSizeOuter(0));
+					svg.select('.y-axis').call(d3.axisLeft(y).tickSizeOuter(0));
+				}
+			}
+
+			svg.call(hover);
+
+			function hover() {
+				let bisect = d3.bisector((d) => d.date).left,
+					format = d3.format('+.0%'),
+					dateFormat = d3.timeFormat('%d %b %Y');
+
+				let focus = svg.append('g').attr('class', 'focus').style('display', 'none');
+
+				focus
+					.append('line')
+					.attr('stroke', 'steelblue')
+					.attr('stroke-width', 1)
+					.attr('y1', -height + margin.top)
+					.attr('y2', -margin.bottom);
+
+				focus.append('circle').attr('class', 'circle').attr('r', 3).attr('dy', 5).attr('stroke', 'steelblue').attr('fill', '#fff');
+
+				focus.append('text').attr('text-anchor', 'middle').attr('dy', '.35em');
+
+				let overlay = svg
+					.append('rect')
+					.attr('class', 'overlay')
+					.attr('x', margin.left)
+					.attr('y', margin.top)
+					.attr('width', width - margin.right - margin.left - 1)
+					.attr('height', height - margin.bottom - margin.top)
+					.on('mouseover', () => focus.style('display', null))
+					.on('mouseout', () => focus.style('display', 'none'))
+					.on('mousemove', mousemove);
+
+				function mousemove() {
+					let x0 = x.invert(d3.mouse(this)[0]);
+
+					let i = bisect(data, x0, 1),
+						d0 = data[i - 1],
+						d1 = data[i],
+						d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+					focus.select('line').attr('transform', 'translate(' + x(d.date) + ',' + height + ')');
+
+					focus.selectAll('.circle').attr('transform', 'translate(' + x(d.date) + ',' + y(d.value) + ')');
+
+					focus
+						.select('text')
+						.attr('transform', 'translate(' + x(d.date) + ',' + (height + margin.bottom) + ')')
+						.text('Date: ' + dateFormat(d.date) + ' Price: ' + d.value);
+				}
+			}
+		}
+
+		function chart2(data) {
+			data.sort((a, b) => a.date - b.date);
+
+			let svg = d3.select('#chart2');
+			(margin = { top: 15, right: -15, bottom: 15, left: 35 }), (width = +svg.attr('width') - margin.left - margin.right), (height = +svg.attr('height') - margin.top - margin.bottom);
+
+			let x = d3
+				.scaleTime()
+				.domain(d3.extent(data, (d) => d.date))
+				.range([margin.left, width - margin.right]);
+
+			let y = d3
+				.scaleLinear()
+				.domain([0, d3.max(data, (d) => d.value)])
+				.nice()
+				.range([height - margin.bottom, margin.top]);
+
+			let xAxis = svg
+				.append('g')
+				.attr('class', 'x-axis')
+				.attr('clip-path', 'url(#clip)')
+				.attr('transform', `translate(0,${height - margin.bottom})`)
+				.call(d3.axisBottom(x).tickSizeOuter(0));
+
+			let yAxis = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(${margin.left},0)`).call(d3.axisLeft(y));
+
+			let line = d3
+				.line()
+				.defined((d) => !isNaN(d.value))
+				.x((d) => x(d.date))
+				.y((d) => y(d.value));
+
+			let defs = svg
+				.append('defs')
+				.append('clipPath')
+				.attr('id', 'clip')
+				.append('rect')
+				.attr('x', margin.left)
+				.attr('width', width - margin.right)
+				.attr('height', height);
+
+			let path = svg.append('path').datum(data).attr('class', 'path').attr('fill', 'none').attr('clip-path', 'url(#clip)').attr('stroke', 'gray').attr('stroke-width', 1.5).attr('d', line);
+
+			// let dot = svg
+			// 	.selectAll('dot')
+			// 	.data(data, (d) => d.date)
+			// 	.join('circle')
+			// 	.attr('cx', (d) => x(d.date))
+			// 	.attr('cy', (d) => y(d.value))
+			// 	.attr('r', 1)
+			// 	.style('fill', 'gray');
+
+			svg.call(zoom);
+
+			function zoom(svg) {
+				let extent = [
+					[margin.left, margin.top],
+					[width - margin.right, height - margin.top],
+				];
+
+				let zooming = d3.zoom().scaleExtent([1, 5]).translateExtent(extent).extent(extent).on('zoom', zoomed);
+
+				svg.call(zooming);
+
+				function zoomed() {
+					x.range([margin.left, width - margin.right].map((d) => d3.event.transform.applyX(d)));
+					y.range([height - margin.bottom, margin.top].map((d) => d3.event.transform.applyY(d)));
+
+					svg.select('.path').attr('d', line);
+					// svg.selectAll('dot')
+					// 	// .data(data, (d) => d.date)
+					// 	// .join('circle')
+					// 	.attr('cx', (d) => x(d.date))
+					// 	.attr('cy', (d) => y(d.value))
+					// 	.attr('r', 1)
+					// 	.style('fill', 'gray');
+
+					svg.select('.x-axis').call(d3.axisBottom(x).tickSizeOuter(0));
+					svg.select('.y-axis').call(d3.axisLeft(y).tickSizeOuter(0));
+				}
+			}
+
+			svg.call(hover);
+
+			function hover() {
+				let bisect = d3.bisector((d) => d.date).left,
+					format = d3.format('+.0%'),
+					dateFormat = d3.timeFormat('%d %b %Y');
+
+				let focus = svg.append('g').attr('class', 'focus').style('display', 'none');
+
+				focus
+					.append('line')
+					.attr('stroke', 'steelblue')
+					.attr('stroke-width', 1)
+					.attr('y1', -height + margin.top)
+					.attr('y2', -margin.bottom);
+
+				focus.append('circle').attr('class', 'circle').attr('r', 3).attr('dy', 5).attr('stroke', 'steelblue').attr('fill', '#fff');
+
+				focus.append('text').attr('text-anchor', 'middle').attr('dy', '.35em');
+
+				let overlay = svg
+					.append('rect')
+					.attr('class', 'overlay')
+					.attr('x', margin.left)
+					.attr('y', margin.top)
+					.attr('width', width - margin.right - margin.left - 1)
+					.attr('height', height - margin.bottom - margin.top)
+					.on('mouseover', () => focus.style('display', null))
+					.on('mouseout', () => focus.style('display', 'none'))
+					.on('mousemove', mousemove);
+
+				function mousemove() {
+					let x0 = x.invert(d3.mouse(this)[0]);
+
+					let i = bisect(data, x0, 1),
+						d0 = data[i - 1],
+						d1 = data[i],
+						d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+					focus.select('line').attr('transform', 'translate(' + x(d.date) + ',' + height + ')');
+
+					focus.selectAll('.circle').attr('transform', 'translate(' + x(d.date) + ',' + y(d.value) + ')');
+
+					focus
+						.select('text')
+						.attr('transform', 'translate(' + x(d.date) + ',' + (height + margin.bottom) + ')')
+						.text('Date: ' + dateFormat(d.date) + ' Price: ' + d.value);
+				}
+			}
+		}
+
+		function chart(data) {
+			data.sort((a, b) => a.date - b.date);
+
+			let svg = d3.select('#chart');
+			(margin = { top: 15, right: -15, bottom: 15, left: 35 }), (width = +svg.attr('width') - margin.left - margin.right), (height = +svg.attr('height') - margin.top - margin.bottom);
+
+			let x = d3
+				.scaleTime()
+				.domain(d3.extent(data, (d) => d.date))
+				.range([margin.left, width - margin.right]);
+
+			let y = d3
+				.scaleLinear()
+				.domain([0, d3.max(data, (d) => d.value)])
+				.nice()
+				.range([height - margin.bottom, margin.top]);
+
+			let xAxis = svg
+				.append('g')
+				.attr('class', 'x-axis')
+				.attr('clip-path', 'url(#clip)')
+				.attr('transform', `translate(0,${height - margin.bottom})`)
+				.call(d3.axisBottom(x).tickSizeOuter(0));
+
+			let yAxis = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(${margin.left},0)`).call(d3.axisLeft(y));
+
+			let line = d3
+				.line()
+				.defined((d) => !isNaN(d.value))
+				.x((d) => x(d.date))
+				.y((d) => y(d.value));
+
+			let defs = svg
+				.append('defs')
+				.append('clipPath')
+				.attr('id', 'clip')
+				.append('rect')
+				.attr('x', margin.left)
+				.attr('width', width - margin.right)
+				.attr('height', height);
+
+			let path = svg.append('path').datum(data).attr('class', 'path').attr('fill', 'none').attr('clip-path', 'url(#clip)').attr('stroke', 'gray').attr('stroke-width', 1.5).attr('d', line);
+
+			// let dot = svg
+			// 	.selectAll('dot')
+			// 	.data(data, (d) => d.date)
+			// 	.join('circle')
+			// 	.attr('cx', (d) => x(d.date))
+			// 	.attr('cy', (d) => y(d.value))
+			// 	.attr('r', 1)
+			// 	.style('fill', 'gray');
+
+			svg.call(zoom);
+
+			function zoom(svg) {
+				let extent = [
+					[margin.left, margin.top],
+					[width - margin.right, height - margin.top],
+				];
+
+				let zooming = d3.zoom().scaleExtent([1, 5]).translateExtent(extent).extent(extent).on('zoom', zoomed);
+
+				svg.call(zooming);
+
+				function zoomed() {
+					x.range([margin.left, width - margin.right].map((d) => d3.event.transform.applyX(d)));
+
+					svg.select('.path').attr('d', line);
+					// svg.selectAll('dot')
+					// 	// .data(data, (d) => d.date)
+					// 	// .join('circle')
+					// 	.attr('cx', (d) => x(d.date))
+					// 	.attr('cy', (d) => y(d.value))
+					// 	.attr('r', 1)
+					// 	.style('fill', 'gray');
+
+					svg.select('.x-axis').call(d3.axisBottom(x).tickSizeOuter(0));
+					svg.select('.y-axis').call(d3.axisLeft(y));
+				}
+			}
+
+			svg.call(hover);
+
+			function hover() {
+				let bisect = d3.bisector((d) => d.date).left,
+					format = d3.format('+.0%'),
+					dateFormat = d3.timeFormat('%d %b %Y');
+
+				let focus = svg.append('g').attr('class', 'focus').style('display', 'none');
+
+				focus
+					.append('line')
+					.attr('stroke', 'steelblue')
+					.attr('stroke-width', 1)
+					.attr('y1', -height + margin.top)
+					.attr('y2', -margin.bottom);
+
+				focus.append('circle').attr('class', 'circle').attr('r', 3).attr('dy', 5).attr('stroke', 'steelblue').attr('fill', '#fff');
+
+				focus.append('text').attr('text-anchor', 'middle').attr('dy', '.35em');
+
+				let overlay = svg
+					.append('rect')
+					.attr('class', 'overlay')
+					.attr('x', margin.left)
+					.attr('y', margin.top)
+					.attr('width', width - margin.right - margin.left - 1)
+					.attr('height', height - margin.bottom - margin.top)
+					.on('mouseover', () => focus.style('display', null))
+					.on('mouseout', () => focus.style('display', 'none'))
+					.on('mousemove', mousemove);
+
+				function mousemove() {
+					let x0 = x.invert(d3.mouse(this)[0]);
+
+					let i = bisect(data, x0, 1),
+						d0 = data[i - 1],
+						d1 = data[i],
+						d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+					focus.select('line').attr('transform', 'translate(' + x(d.date) + ',' + height + ')');
+
+					focus.selectAll('.circle').attr('transform', 'translate(' + x(d.date) + ',' + y(d.value) + ')');
+
+					focus
+						.select('text')
+						.attr('transform', 'translate(' + x(d.date) + ',' + (height + margin.bottom) + ')')
+						.text('Date: ' + dateFormat(d.date) + ' Price: ' + d.value);
+				}
+			}
+		}
+	</script>
+</body>
